@@ -1,2 +1,79 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+##CHATBOOK V0.32 - CAPABLE OF SWITCHING & SAVES LIBRARY-NUMBER PAIRS
+
+import json
+import os
+import requests
+
+URL = 'https://api.openai.com/v1/chat/completions'
+MODEL = 'gpt-3.5-turbo'
+TOKEN = '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'
+TOKEN_ENV = 'OPENAI_TOKEN'
+API_TOKEN = os.getenv(TOKEN_ENV, default=TOKEN)
+
+headers = {
+    'Authorization': f'Bearer {API_TOKEN}',
+    'Content-Type': 'application/json'
+}
+
+print('\nWelcome to the Symbiosis chat bot!\n')
+
+dict_list = []
+current_dict_name = None
+current_dict = None
+first_run = True
+
+def select_dict():
+    print("\nAvailable dictionaries:")
+    for idx, d in enumerate(dict_list, 1):
+        print(f"{idx}. {list(d.keys())[0]}")
+
+    while True:
+        try:
+            choice = int(input("Enter the number of the dictionary you'd like to select, or 0 to create a new one: "))
+            if 0 <= choice <= len(dict_list):
+                return choice
+            else:
+                print("Invalid choice. Please enter a valid number.")
+        except ValueError:
+            print("Invalid input. Please enter a valid number.")
+
+while True:
+    if first_run or current_dict is None:
+        choice = select_dict()
+
+        if choice == 0:
+            current_dict_name = input('Enter a name for the new dictionary: ')
+            current_dict = {}
+            dict_list.append({current_dict_name: current_dict})
+        else:
+            current_dict_name = list(dict_list[choice - 1].keys())[0]
+            current_dict = dict_list[choice - 1][current_dict_name]
+
+        first_run = False
+
+    content = input('Please enter a prompt: ')
+    data = {
+        'model': MODEL,
+        'messages': [{'role': 'user', 'content': content}]
+    }
+    r = requests.post(URL, headers=headers, data=json.dumps(data)).json()
+    response = r.get('choices')[0].get('message').get('content')
+    
+    # Create a unique key for each prompt-answer pair
+    key = f"{current_dict_name}-{len(current_dict) + 1}"
+    current_dict[key] = {"prompt": content, "response": response}
+    
+    # Display the unique key along with the response
+    print(f'[{key}] {response}\n')
+
+    choice = input('Enter "new" to create a new dictionary, "switch" to switch dictionaries, "quit" to exit, or any other key to continue: ')
+
+    if choice == 'new':
+        current_dict = None
+    elif choice == 'switch':
+        current_dict = None
+        first_run = False
+    elif choice == 'quit':
+        break
+
+print('Final dictionary list:', dict_list)
